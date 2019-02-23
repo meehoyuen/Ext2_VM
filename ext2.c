@@ -1217,6 +1217,27 @@ int validate_superblock(EXT2_FILESYSTEM* fs)
 /* location의 entry 정보를 변경 */
 int set_entry(EXT2_FILESYSTEM* fs, EXT2_DIR_ENTRY_LOCATION* location, EXT2_DIR_ENTRY* newEntry)
 {
+	EXT2_SUPER_BLOCK* sb = &fs->sb;
+	UINT32 block;
+	BYTE buffer[EXT2_BLOCK_SIZE];
+
+	block = sb->firstDataBlock + location->group * sb->blocksPerGroup + location->block;
+	ZeroMemory(buffer, sizeof(buffer));
+
+	if(read_block(fs, block, buffer) != EXT2_SUCCESS)
+	{
+		printf("error : failed to read_block() in get_entry()\n");
+		return EXT2_ERROR;
+	}
+	memcpy(&((EXT2_DIR_ENTRY *)buffer)[location->offset], newEntry, sizeof(EXT2_DIR_ENTRY));
+
+	if(write_block(fs, block, buffer) != EXT2_SUCCESS)
+	{
+		printf("error : failed to write_block() in get_entry()\n");
+		return EXT2_ERROR;
+	}
+
+	return EXT2_SUCCESS; 
 }
 
 /* 영준 */
@@ -1236,12 +1257,6 @@ int get_entry(EXT2_FILESYSTEM* fs, EXT2_DIR_ENTRY_LOCATION* location, EXT2_DIR_E
 		return EXT2_ERROR;
 	}
 	memcpy(retEntry, &((EXT2_DIR_ENTRY *)buffer)[location->offset], sizeof(EXT2_DIR_ENTRY));
-
-	if(write_block(fs, block, buffer) != EXT2_SUCCESS)
-	{
-		printf("error : failed to write_block() in get_entry()\n");
-		return EXT2_ERROR;
-	}
 
 	return EXT2_SUCCESS; 
 }
@@ -1367,9 +1382,9 @@ int read_dir_from_block(EXT2_FILESYSTEM* fs, BYTE* buffer, EXT2_NODE_ADD adder, 
 
 	for (i = 0; i < maxEntry; i++)
 	{
-		if (entry->dir2.fileType == EXT2_FT_UNKNOWN)
+		if (entry->dir2.fileType == EXT2_FT_FREE)
 			;
-		else if (entry->recordLength > sizeof(EXT2_DIR_ENTRY)) // 마지막 엔트리일 때
+		else if (entry->dir2.fileType == EXT2_FT_NO_MORE) // 마지막 엔트리일 때
 			return -1;
 		else
 		{
@@ -1481,7 +1496,7 @@ int format_name(EXT2_FILESYSTEM* fs, char* name)
 
 /* 영준 */
 /* 블록 내의 number번째 엔트리를 찾음 */
-int find_entry_at_block(EXT2_FILESYSTEM* fs, const BYTE* block, const char* entryName, UINT32* number)
+int find_entry_at_block(EXT2_FILESYSTEM* fs, const BYTE block, const char* entryName, UINT32* number)
 {
 }
 
@@ -1598,13 +1613,14 @@ int get_allocated_block(EXT2_FILESYSTEM* fs, UINT32 block, const EXT2_INODE* ino
 
 /* 영준 */
 /* inode 의 영역 순회하며 entryName 탐색 */
+/* */
 int lookup_entry(EXT2_FILESYSTEM* fs, const EXT2_INODE* inode, const BYTE* entryName, EXT2_NODE* ret)
 {
 	BYTE* buffer[EXT2_BLOCK_SIZE];
 	EXT2_SB_INFO* sb_info = &fs->sb_info;
 	UINT32 block, retBlk, number;
 	UINT32 usedBlk;
-	UINT32 i;
+	UINT32 i, result;
 
 	ZeroMemory(buffer, sizeof(buffer));
 
@@ -1623,15 +1639,14 @@ int lookup_entry(EXT2_FILESYSTEM* fs, const EXT2_INODE* inode, const BYTE* entry
 			printf("error : failed to read block in lookup_entry()\n");
 			return EXT2_ERROR;
 		}
-
-		if (find_entry_at_block(fs, buffer, entryName, &number) != EXT2_SUCCESS)
+		result = find_entry_at_block(fs, buffer, entryName, &number);
+		if (result == EXT2_ERROR)
 		{
 			printf("error : failed to find entry\n");
-			return EXT2_ERROR;
 		}
 	}
 
-	return EXT2_SUCCESS;
+	return result;
 }
 
 /* 지민 */
@@ -1746,9 +1761,12 @@ int insert_entry(EXT2_NODE* parent, EXT2_NODE* newEntry, UINT32 overwrite)
 	BYTE buffer[EXT2_BLOCK_SIZE];
 	EXT2_INODE* inode;
 	EXT2_DIR_ENTRY_LOCATION location;
+	EXT2_SUPER_BLOCK* sb = &parent->fs->sb;
 	EXT2_SB_INFO* sb_info = &parent->fs->sb_info;
 	inode = (EXT2_INODE *)buffer;
 	UINT32 blockNumber;
+
+	EXT2_NODE entryNoMore;
 
 	// 부모 디렉토리의 inode 읽어옴
 	ZeroMemory(buffer, sizeof(buffer));
@@ -1765,16 +1783,60 @@ int insert_entry(EXT2_NODE* parent, EXT2_NODE* newEntry, UINT32 overwrite)
 		return EXT2_ERROR;
 	}
 
-	location.group = blockNumber / sb_info->blocksPerGroup; // 블록 그룹 번호
+	location.group = (blockNumber - sb->firstDataBlock) / sb_info->blocksPerGroup; // 블록 그룹 번호
+	location.block = (blockNumber - sb->firstDataBlock) % sb_info->blocksPerGroup;
 	location.offset = 0;
 
 	// 루트 디렉토리가 아니고 overwrite가 set이면
 	if (!is_root_dir(&parent->entry) && overwrite == 1)
 	{
-		set_entry(parent->fs, &location, &newEntry->entry);
+		if(set_entry(parent->fs, &location, &newEntry->entry) != EXT2_SUCCESS)
+		{
+			printf("error : failed to set_entry() in insert_entry()\n");
+			return EXT2_ERROR;
+		}
 		newEntry->location = location;
 		// 하다 말앗음
+		location.offset = 1;
+		ZeroMemory(&entryNoMore, sizeof(entryNoMore));
+		entryNoMore.entry.dir2.fileType = EXT2_FT_NO_MORE;
+		entryNoMore.entry.recordLength = EXT2_BLOCK_SIZE - sizeof(EXT2_DIR_ENTRY);
+		if(set_entry(parent->fs, &location, &entryNoMore.entry) != EXT2_SUCCESS)
+		{
+			printf("error : failed to set_entry() in insert_entry()\n");
+			return EXT2_ERROR;
+		}
+
+		return EXT2_SUCCESS;
 	}
+
+	entryNoMore.entry.dir2.fileType = EXT2_FT_FREE; // 삭제된 엔트리 찾기
+	if(lookup_entry(parent->fs, inode, NULL, &entryNoMore) == EXT2_SUCCESS)
+	{
+		set_entry(parent->fs, &entryNoMore.location, &newEntry->entry);
+		newEntry->location = entryNoMore.location;
+	}
+	else
+	{
+		entryNoMore.entry.dir2.fileType = EXT2_FT_NO_MORE;
+		if(lookup_entry(parent->fs, inode, NULL, &entryNoMore) != EXT2_SUCCESS)
+			return EXT2_ERROR;
+		
+		set_entry(parent->fs, &entryNoMore.locatioinm &newEntry->entry);
+		newEntry->location = entryNoMore.location;
+		entryNoMore.location.number++;
+
+		if(entryNoMore.location.number == (EXT2_BLOCK_SIZE / sizeof(EXT2_DIR_ENTRY)))
+		{
+			if(alloc_block(parent->fs, parent) != EXT2_SUCCESS)
+			{
+				printf("error : failed to alloc_block() in insert_entry()\n");
+				return EXT2_ERROR;
+			}
+			get_allocated_block(parent->fs, inode->blockCount, inode, &entryNoMore.location)
+
+	}
+	
 
 	return EXT2_SUCCESS;
 }
@@ -1951,7 +2013,7 @@ int ext2_rmdir(EXT2_NODE* node)
 	}
 
 	ZeroMemory(buffer, sizeof(buffer));
-	node->entry.dir2.fileType = EXT2_FT_UNKNOWN; // 삭제된 엔트리 설정
+	node->entry.dir2.fileType = EXT2_FT_FREE; // 삭제된 엔트리 설정
 	free_block(node);
 	free_inode(node);
 	set_entry(node->fs, &node->location, &node->entry); // 변경된 정보 저장
