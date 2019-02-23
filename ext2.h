@@ -257,14 +257,15 @@ typedef struct ext2_inode {
 } EXT2_INODE;
 
 enum {
-	EXT2_FT_UNKNOWN		= 0,
-	EXT2_FT_REG_FILE	= 1,
-	EXT2_FT_DIR			= 2,
-	EXT2_FT_CHRDEV		= 3,
-	EXT2_FT_BLKDEV		= 4,
-	EXT2_FT_FIFO		= 5,
-	EXT2_FT_SOCK		= 6,
-	EXT2_FT_SYMLINK		= 7,
+	EXT2_FT_FREE		= 0,
+	EXT2_FT_NO_MORE		= 1,
+	EXT2_FT_REG_FILE	= 2,
+	EXT2_FT_DIR			= 3,
+	EXT2_FT_CHRDEV		= 4,
+	EXT2_FT_BLKDEV		= 5,
+	EXT2_FT_FIFO		= 6,
+	EXT2_FT_SOCK		= 7,
+	EXT2_FT_SYMLINK		= 8,
 	EXT2_FT_MAX
 };
 
@@ -302,7 +303,7 @@ typedef struct ext2_node {
 	EXT2_DIR_ENTRY_LOCATION location;
 } EXT2_NODE;
 
-typedef int(*EXT2_NODE_ADD)(void*, EXT2_NODE*);
+typedef int(*EXT2_NODE_ADD)(EXT2_FILESYSTEM*, void*, EXT2_NODE*);
 
 int ext2_read(EXT2_NODE* file, unsigned long offset, unsigned long length, BYTE* buffer);
 int ext2_write(EXT2_NODE* file, unsigned long offset, unsigned long length, const BYTE* buffer);

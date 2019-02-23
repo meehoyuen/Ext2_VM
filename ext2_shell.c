@@ -85,24 +85,15 @@ int ext2_entry_to_shell_entry(EXT2_FILESYSTEM* fs, const EXT2_NODE* ext2_entry, 
 		return EXT2_ERROR;
 	}
 
-	if (ext2_entry->entry.name[0] == '.' && inode == 2) // 루트 디렉터리인 경우
-		;
-	else // 루트 디렉터리가 아닌 경우
-	{
-		memcpy(shell_entry->name, ext2_entry->entry.name, ext2_entry->entry.dir2.nameLength);
-	}
+	memcpy(shell_entry->name, ext2_entry->entry.name, ext2_entry->entry.dir2.nameLength);
 
-	if (FILE_TYPE_DIR & ext2_entry->entry.dir2.fileType != 0) // 디렉터리인 경우
+
+	if (EXT2_FT_DIR & ext2_entry->entry.dir2.fileType != 0) // 디렉터리인 경우
 	{
 		shell_entry->isDirectory = 1;
 	}
-	else // 파일인 경우 
-	{
-		shell_entry->isDirectory = 0;
-		shell_entry->size = inodeBuffer.fileSize; 
-	}
 
-	shell_entry->permition = 0x01FF & inodeBuffer.fileMode; 
+	shell_entry->size = inodeBuffer.fileSize; 
 
 	*entry = *ext2_entry; 
 
