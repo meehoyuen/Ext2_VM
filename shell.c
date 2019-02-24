@@ -467,6 +467,7 @@ int shell_cmd_fill(int argc, char* argv[])
 	sscanf(argv[2], "%d", &size);
 	sscanf(argv[3], "%s", opt);
 
+
 	if (strcmp(opt, CREATE) == 0)
 	{
 		result = g_fsOprs.fileOprs->create(&g_disk, &g_fsOprs, &g_currentDir, argv[1], &entry);
@@ -477,6 +478,7 @@ int shell_cmd_fill(int argc, char* argv[])
 		}
 		offset = 0;
 	}
+
 	if (strcmp(opt, APPEND) == 0) {
 		g_fsOprs.lookup(&g_disk, &g_fsOprs, &g_currentDir, &entry, argv[1]);
 		offset = entry.size;
@@ -489,6 +491,7 @@ int shell_cmd_fill(int argc, char* argv[])
 		memcpy(tmp, "Can you see? ", 13);
 		tmp += 13;
 	}
+
 	g_fsOprs.fileOprs->write(&g_disk, &g_fsOprs, &g_currentDir, &entry, offset, size, buffer);
 	free(buffer);
 

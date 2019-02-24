@@ -88,12 +88,14 @@ int ext2_entry_to_shell_entry(EXT2_FILESYSTEM* fs, const EXT2_NODE* ext2_entry, 
 	memcpy(shell_entry->name, ext2_entry->entry.name, ext2_entry->entry.dir2.nameLength);
 
 
-	if (EXT2_FT_DIR & ext2_entry->entry.dir2.fileType != 0) // 디렉터리인 경우
+	if (EXT2_FT_DIR == ext2_entry->entry.dir2.fileType) // 디렉터리인 경우
 	{
+//		printf("EXT2_FT_DIR : %d\next2_entry->entry.dir2.fileType : %d\n", EXT2_FT_DIR, ext2_entry->entry.dir2.fileType);
 		shell_entry->isDirectory = 1;
 	}
 
 	shell_entry->size = inodeBuffer.fileSize; 
+
 
 	*entry = *ext2_entry; 
 
@@ -140,6 +142,7 @@ int adder(EXT2_FILESYSTEM* fs, void* list, EXT2_NODE* entry) /* entry를 lsit에 �
 	SHELL_ENTRY         newEntry;
 
 	ext2_entry_to_shell_entry(fs, entry, &newEntry); /* SHELL_ENTRY로 변환 후 */
+printf("newEntry.size : %d\n", newEntry.size);	
 	add_entry_list(entryList, &newEntry); /* ENTRY_LIST에 추가 */
 
 	return EXT2_SUCCESS;
@@ -159,7 +162,7 @@ int fs_write(DISK_OPERATIONS* disk, SHELL_FS_OPERATIONS* fsOprs, const SHELL_ENT
 	EXT2_NODE EXT2Entry;
 
 	shell_entry_to_ext2_entry(entry, &EXT2Entry); /* EXT2_ENTRY로 변환 후 */
-
+	
 	return ext2_write(&EXT2Entry, offset, length, buffer); /* offset 위치부터 length만큼 buffer로 읽어옴 */
 }
 

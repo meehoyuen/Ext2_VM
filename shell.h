@@ -75,7 +75,7 @@ typedef struct
 } SHELL_FILESYSTEM;
 
 int		init_entry_list( SHELL_ENTRY_LIST* list );
-int		add_entry_list( SHELL_ENTRY_LIST*, struct SHELL_ENTRY* );
+int		add_entry_list( SHELL_ENTRY_LIST*, SHELL_ENTRY* );
 void	release_entry_list( SHELL_ENTRY_LIST* );
 
 #endif

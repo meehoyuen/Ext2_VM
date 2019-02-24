@@ -305,8 +305,8 @@ typedef struct ext2_node {
 
 typedef int(*EXT2_NODE_ADD)(EXT2_FILESYSTEM*, void*, EXT2_NODE*);
 
-int ext2_read(EXT2_NODE* file, unsigned long offset, unsigned long length, BYTE* buffer);
-int ext2_write(EXT2_NODE* file, unsigned long offset, unsigned long length, const BYTE* buffer);
+int ext2_read(EXT2_NODE* file, unsigned long offset, unsigned long length, char* buffer);
+int ext2_write(EXT2_NODE* file, unsigned long offset, unsigned long length, const char* buffer);
 
 int ext2_format(DISK_OPERATIONS* disk); 
 int ext2_read_superblock(EXT2_FILESYSTEM* fs, EXT2_NODE* root); 

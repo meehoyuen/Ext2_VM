@@ -15,6 +15,8 @@ int add_entry_list( SHELL_ENTRY_LIST* list, SHELL_ENTRY* entry )
 {
 	SHELL_ENTRY_LIST_ITEM*	newItem;
 
+printf("entry->size : %d\n", entry->size);
+
 	newItem = ( SHELL_ENTRY_LIST_ITEM* )malloc( sizeof( SHELL_ENTRY_LIST_ITEM ) );
 	newItem->entry	= *entry;
 	newItem->next	= NULL;
